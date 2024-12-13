@@ -1,0 +1,114 @@
+---
+title: "Proyecto Rocio Martinez"
+author: "Rocio Martinez"
+date: "2024-12-05"
+output: html_document
+---
+
+```{r}
+# Cargar paquetes
+library(tidyverse)
+library(tseries)
+library(forecast)
+library(stats)
+library(ggplot2)
+library(plotly)
+library(DT)
+library(openxlsx)
+library(shiny)
+```
+
+```{r}
+datos<- read.csv("precios.csv" , sep=",")
+
+head(datos)
+
+
+```
+
+```{r}
+unique(datos$bandera)
+```
+
+```{r}
+unique(datos$producto)
+```
+
+#Ver los unicos tipos de productos
+
+```{r}
+
+datos<- filter(datos, producto %in% c(
+"Gasoil Grado 2",
+"Nafta (premium) de más de 95 Ron",
+"Nafta (común) hasta 92 Ron",
+"Gasoil Grado 3 (Ultra) (m3)",
+
+))
+```
+
+```{r}
+datos<- filter(datos, volumen != 0)
+```
+
+```{r}
+unique(datos$operador)
+```
+
+#Nombres de las columnas
+
+```{r}
+empresas <- c(
+  "AERONAFTAS RAFAELA S.A", "ALBECA S.A.", "CALCOR S.A.", "C.A.PET.S.A", 
+  "CIA. PET. REF. COM. DIST. DEL PLATA S.A", "COMBUSTIBLES CORDOBA SRL", 
+  "COMPAÑIA PETROLERA COPSA SA", "DESTILERIA ARGENTINA DE PETROLEO S.A", 
+  "EG3 SA", "ESSO PETROLERA ARGENTINA S.R.L.", "NEWPETROL S.R.L.", 
+  "PETROBRAS ENERGIA SA", "PETROLERA DEL CONOSUR SA", "REFINERIA DEL NORTE SA", 
+  "RUTILEX HIDROCARBUROS ARGENTINOS SA", "SHELL COMPAÑIA ARGENTINA DE PETRÓLEO S.A.", 
+  "SUALIER S.A", "TRANSFUEL-OIL S.R.L.", "VICTORIO PODESTA Y CIA. S.A.", 
+  "VITOL ARGENTINA S.A.", "YPF S.A.", "ILLA S.R.L.", "PLUSPETROL S.A.", 
+  "VGC S.A.", "EL CORTITO S.R.L.", "DON ARDELIO S.R.L.", "NIMA S.R.L.", 
+  "OIL COMBUSTIBLES S.A.", "GRASTA PETRÒLEO S.A.", 
+  "SERVICIOS ENERGETICOS DEL CHACO EMPRESA DEL ESTADO PROVINCIAL", "REAL S.A", 
+  "CEREALES DON NINO S.A.", "TRAFIGURA ARGENTINA S.A.", "POBATER SA", 
+  "VINCI S.R.L", "PAMPA ENERGÍA S.A", "OPERADOR PRUEBA OCTU #4", 
+  "PAN AMERICAN ENERGY LLC, SUCURSAL ARGENTINA", "COMBUSTIBLES ITALO ARGENTINO SA", 
+  "DELTAPATAGONIA SA", "MINOD CARLOS LUIS", "REFI PAMPA SA", "KALPA GROUP SA", 
+  "EQUIPO AGIL S.A.", "JAIS JORGE CARLOS", "PETROLEO Y SERVICIOS SA", 
+  "LAVIANA COMBUSTIBLES SA"
+)
+
+
+empresas_agrupadas <- dplyr::case_when(
+  empresas == "YPF S.A." ~ "YPF",
+  empresas == "SHELL COMPAÑIA ARGENTINA DE PETRÓLEO S.A." ~ "SHELL",
+  empresas == "PETROBRAS ENERGIA SA" ~ "PUMA",
+  empresas %in% c("PAN AMERICAN ENERGY LLC, SUCURSAL ARGENTINA", "ESSO PETROLERA ARGENTINA S.R.L.") ~ "AXION",
+  TRUE ~ "OTRAS"
+)
+
+# Mostrar resultado
+table(empresas_agrupadas)
+```
+
+###Modificamos nombres de las columnas
+
+```{r}
+datos <- datos %>% 
+  rename(Año = anio,
+         Tipo_Comercializacion= tipodecomercializacion,
+         Unidad= unidad,
+         Pais=pais,
+         Mes=mes,
+         Subtipo_Comercializacion =subtipodecomercializacion,
+         Provincia = provincia,
+         Fecha=indice_tiempo,
+         Empresa= empresa,
+         Producto= producto,
+         Cantidadkm3 = cantidad)
+```
+
+```{r}
+datos<- datos %>%
+  mutate (Cantidadkm3= Cantidadkm3/1000)
+```
