@@ -4,7 +4,6 @@ author: "Rocio Martinez"
 date: "2024-12-05"
 output: html_document
 ---
-
 ```{r}
 # Cargar paquetes
 library(tidyverse)
@@ -16,67 +15,149 @@ library(plotly)
 library(DT)
 library(openxlsx)
 library(shiny)
+library(dplyr)
+library(highcharter)
+library(TSstudio)
+```
+
+
+```{r}
+datos1<- read.csv("precios.csv" , sep=",")
+
+head(datos1)
+
 ```
 
 ```{r}
-datos<- read.csv("precios.csv" , sep=",")
+#Nombre de las columnas
+colnames(datos1)
 
-head(datos)
+# Eliminar las columnas no requeridas para el desarollo
 
+datos <- datos1[, -c(4, 5, 6, 7, 8, 10, 18,19)]
 
+colnames(datos)
 ```
 
+
 ```{r}
-unique(datos$bandera)
+datos<- filter(datos, volumen != 0)
+
 ```
 
 ```{r}
 unique(datos$producto)
 ```
+```{r}
+#Totales por año
+TotalCantkm3 <- datos %>%
+  group_by(anio, producto) %>%
+  summarise(TotalKM3 = sum(volumen, na.rm = TRUE), .groups = "drop")
+
+```
+
+
+```{r}
+
+# Calcular el volumen total por producto 
+total_volumen <- datos %>% 
+                group_by(producto) %>% 
+                summarise(volumen_total = sum(volumen, na.rm = TRUE))
+
+# Crear el gráfico de columnas ordenadas de mayor a menor 
+
+g_volumen <- ggplot(total_volumen, aes(x = reorder(producto, -volumen_total), y = volumen_total)) + 
+                     geom_col(fill = "#0B4462") +
+                    theme_minimal() + 
+                    theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+                    labs(title = "Volumen Total por Producto", x = "Producto", y = "Volumen Total")
+
+
+g1 <-ggplotly(g_volumen)
+
+g1
+```
+
+
+```{r}
+# Calcular el volumen total por operador 
+total_operador <- datos %>% 
+                group_by(operador) %>% 
+                summarise(volumen_operador = sum(volumen, na.rm = TRUE)) %>% 
+                arrange(desc(volumen_operador))
+
+
+# Filtrar el top 10 de operadores 
+top_10_operadores <- total_operador %>% 
+  slice_head(n = 10)
+
+
+
+# Crear el gráfico de columnas ordenadas de mayor a menor 
+
+g_operador <- ggplot(top_10_operadores, aes(x = reorder(operador, -volumen_operador), y = volumen_operador)) + 
+                     geom_col(fill = "lightblue") +
+                    theme_minimal() + 
+                    theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+                    labs(title = "Volumen Total por Operador (Top 10)", x = "Operadores", y = "Volumen Total")
+
+
+g2 <-ggplotly(g_operador)
+
+g2
+```
+
+
 
 #Ver los unicos tipos de productos
-
 ```{r}
 
 datos<- filter(datos, producto %in% c(
-"Gasoil Grado 2",
+"Gas Oil Grado 2",
 "Nafta (premium) de más de 95 Ron",
-"Nafta (común) hasta 92 Ron",
-"Gasoil Grado 3 (Ultra) (m3)",
-
+"Nafta (súper) entre 92 y 95 Ron",
+"Gas Oil Grado 3",
+"Aerokerosene"
 ))
 ```
 
+
 ```{r}
-datos<- filter(datos, volumen != 0)
+#Precio sin impuesto promedio por año
+precio <- datos %>%
+  group_by(anio, producto) %>%
+  summarise(precio_prom = mean(precio_sin_impuestos, na.rm = TRUE), .groups = "drop")
+
 ```
+
+
+```{r}
+# Crear el gráfico con ggplot
+g_precios <- ggplot(precio, aes(x = anio, y = precio_prom, color = producto, 
+                                      group = producto)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Precio promedio por Año y Producto",
+       x = "Año",
+       y = "Precio promedio",
+       color = "Producto") +
+  theme_minimal()
+
+
+g3 <- ggplotly(g_precios)
+g3
+
+```
+
+
 
 ```{r}
 unique(datos$operador)
 ```
 
-#Nombres de las columnas
 
 ```{r}
-empresas <- c(
-  "AERONAFTAS RAFAELA S.A", "ALBECA S.A.", "CALCOR S.A.", "C.A.PET.S.A", 
-  "CIA. PET. REF. COM. DIST. DEL PLATA S.A", "COMBUSTIBLES CORDOBA SRL", 
-  "COMPAÑIA PETROLERA COPSA SA", "DESTILERIA ARGENTINA DE PETROLEO S.A", 
-  "EG3 SA", "ESSO PETROLERA ARGENTINA S.R.L.", "NEWPETROL S.R.L.", 
-  "PETROBRAS ENERGIA SA", "PETROLERA DEL CONOSUR SA", "REFINERIA DEL NORTE SA", 
-  "RUTILEX HIDROCARBUROS ARGENTINOS SA", "SHELL COMPAÑIA ARGENTINA DE PETRÓLEO S.A.", 
-  "SUALIER S.A", "TRANSFUEL-OIL S.R.L.", "VICTORIO PODESTA Y CIA. S.A.", 
-  "VITOL ARGENTINA S.A.", "YPF S.A.", "ILLA S.R.L.", "PLUSPETROL S.A.", 
-  "VGC S.A.", "EL CORTITO S.R.L.", "DON ARDELIO S.R.L.", "NIMA S.R.L.", 
-  "OIL COMBUSTIBLES S.A.", "GRASTA PETRÒLEO S.A.", 
-  "SERVICIOS ENERGETICOS DEL CHACO EMPRESA DEL ESTADO PROVINCIAL", "REAL S.A", 
-  "CEREALES DON NINO S.A.", "TRAFIGURA ARGENTINA S.A.", "POBATER SA", 
-  "VINCI S.R.L", "PAMPA ENERGÍA S.A", "OPERADOR PRUEBA OCTU #4", 
-  "PAN AMERICAN ENERGY LLC, SUCURSAL ARGENTINA", "COMBUSTIBLES ITALO ARGENTINO SA", 
-  "DELTAPATAGONIA SA", "MINOD CARLOS LUIS", "REFI PAMPA SA", "KALPA GROUP SA", 
-  "EQUIPO AGIL S.A.", "JAIS JORGE CARLOS", "PETROLEO Y SERVICIOS SA", 
-  "LAVIANA COMBUSTIBLES SA"
-)
+empresas <- unique(datos$operador)
 
 
 empresas_agrupadas <- dplyr::case_when(
@@ -89,26 +170,167 @@ empresas_agrupadas <- dplyr::case_when(
 
 # Mostrar resultado
 table(empresas_agrupadas)
+
 ```
+
 
 ###Modificamos nombres de las columnas
 
 ```{r}
+colnames(datos)
+```
+
+
+
+```{r}
 datos <- datos %>% 
   rename(Año = anio,
-         Tipo_Comercializacion= tipodecomercializacion,
-         Unidad= unidad,
-         Pais=pais,
-         Mes=mes,
-         Subtipo_Comercializacion =subtipodecomercializacion,
+         Mes = mes,
+         Empresa= operador,
+         Direccion = direccion,
          Provincia = provincia,
-         Fecha=indice_tiempo,
-         Empresa= empresa,
-         Producto= producto,
-         Cantidadkm3 = cantidad)
+         Producto = producto,
+         Canal_Comercializacion= canal_de_comercializacion,
+         Precio_sin_impuestos = precio_sin_impuestos,
+         Precio_con_impuestos = precio_con_impuestos,
+         Cantidadkm3 = volumen,
+         Precio_surtidor = precio_surtidor)
+ 
+              
 ```
 
 ```{r}
 datos<- datos %>%
   mutate (Cantidadkm3= Cantidadkm3/1000)
 ```
+
+
+
+
+```{r}
+datosGasoil <- datos %>%
+  filter(Producto %in% c("Gas Oil Grado 2","Gas Oil Grado 3"))
+
+preciomesGasoil<-datosGasoil %>%
+  group_by(Año, Mes) %>%
+  summarise(Precio_prom = mean(Precio_sin_impuestos, na.rm = TRUE) , .groups = 'drop')
+preciomesGasoil
+
+
+
+```
+
+```{r}
+# Crear serie de tiempo para gasoil
+tims_ts_gasoil <- ts(preciomesGasoil$Precio_prom,
+              start = c(2004,12),
+              frequency = 12)
+
+# Mostrar serie de tiempo
+tims_ts_gasoil
+
+
+
+# Definir el periodo para train - test
+
+train_ts_gasoil <- window(tims_ts_gasoil, start = c(2004, 12), end = c(2019, 12))
+test_ts_gasoil <- window(tims_ts_gasoil, start = c(2020,1))
+
+# Verificar la serie temporal limitada
+print(train_ts_gasoil)
+print(test_ts_gasoil)
+
+
+
+
+
+
+
+```
+
+```{r}
+# Dataframe con datos
+tims_df_gasoil <- preciomesGasoil %>%
+  spread(Mes, Precio_prom) %>%  
+  select(Año, everything())
+
+# Descomposición de la serie de tiempo. Se almacena en el objeto fit_gasoil
+fit_gasoil <- decompose(tims_ts_gasoil, type='additive')
+
+autoplot(fit_gasoil)
+
+
+```
+
+```{r}
+hchart(stl(train_ts_gasoil, s.window='periodic'))
+
+
+```
+
+```{r}
+autoplot(tims_ts_gasoil, series="Serie tiempo") + 
+        autolayer(trendcycle(fit_gasoil), series="Tendencia") +
+        labs(title = "Serie de tiempo",      
+             x = "Tiempo",
+             y = "Valor"
+        ) + 
+        theme_bw()
+
+```
+
+```{r}
+
+ts_seasonal(tims_ts_gasoil, type = "all")
+
+
+```
+
+```{r}
+
+# Prueba de dicky-fuller
+adf_result <- adf.test(train_ts_gasoil)
+
+# resultados de la prueba
+if (adf_result$p.value > 0.05) {
+  print("La serie no es estacionaria")
+} else {
+  print("La serie es estacionaria")
+}
+print(adf_result)
+
+# Diferenciar la serie temporal
+tims_ts_diff <- diff(train_ts_gasoil)
+
+# Realizar nuevamente la prueba de Dickey-Fuller Aumentada
+adf_result_diff <- adf.test(tims_ts_diff)
+if (adf_result_diff$p.value > 0.05) {
+  print("La serie no es estacionaria con 1 diferencia")
+} else {
+  print("La serie es estacionaria con 1 diferencia")
+}
+print(adf_result_diff)
+
+```
+#Box test
+El Box-Ljung test es una prueba estadística que se utiliza para verificar la independencia de los residuos de una serie de tiempo. En otras palabras, esta prueba ayuda a determinar si hay autocorrelación en los residuos de una serie de tiempo después de ajustar un modelo.
+
+```{r}
+Box.test(tims_ts_gasoil, lag = 10, type = "Ljung-Box")
+
+```
+Dado que el valor p es extremadamente bajo (menor que 2.2e-16), es mucho menor que un nivel de significancia común (por ejemplo, 0.05). Por lo tanto, rechazamos la hipótesis nula y concluimos que hay evidencia significativa de autocorrelación en los residuos de la serie de tiempo.
+
+MODELO ARIMA
+
+```{r}
+#Ajuste automático de los coeficientes
+ARIMAmodel_gasoil <- auto.arima(train_ts_gasoil)
+
+pronostico_arima_gasoil <- forecast(ARIMAmodel_gasoil, h = 30)
+
+
+autoplot(pronostico_arima_gasoil)
+
+```
+
